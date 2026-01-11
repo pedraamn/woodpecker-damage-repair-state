@@ -206,6 +206,22 @@ def slugify(s: str) -> str:
 def city_state_slug(city: str, state: str) -> str:
     return f"{slugify(city)}-{slugify(state)}"
 
+def state_slug(state: str) -> str:
+    # state is already like "CA", "TX" in your CSV loader
+    return slugify(state)
+
+def state_title(state: str) -> str:
+    return clamp_title(f"{CONFIG.h1_short} in {state}", 70)
+
+def cities_by_state(cities: tuple[CityWithCol, ...]) -> dict[str, list[CityWithCol]]:
+    m: dict[str, list[CityWithCol]] = {}
+    for city, state, col in cities:
+        m.setdefault(state, []).append((city, state, col))
+    # optional: sort cities alphabetically inside each state
+    for st in m:
+        m[st].sort(key=lambda t: t[0].lower())
+    return m
+
 
 def clamp_title(title: str, max_chars: int = 70) -> str:
     if len(title) <= max_chars:
@@ -837,6 +853,73 @@ def homepage_html() -> str:
         inner=inner,
     )
 
+def state_homepage_html() -> str:
+    by_state = cities_by_state(CITIES)
+    states = sorted(by_state.keys())
+
+    state_links = "\n".join(
+        f'<li><a href="{esc("/" + state_slug(st) + "/")}">{esc(st)}</a></li>'
+        for st in states
+    )
+
+    inner = (
+        make_section(headings=CONFIG.main_h2, paras=CONFIG.main_p)
+        + """
+<hr />
+<h2>Choose your state</h2>
+<p class="muted">We provide services nationwide, including in the following states:</p>
+<ul class="city-grid">
+"""
+        + state_links
+        + f"""
+</ul>
+<hr />
+<p class="muted">
+  Also available: <a href="/cost/">{esc(CONFIG.cost_title)}</a> and <a href="/how-to/">{esc(CONFIG.howto_title)}</a>.
+</p>
+"""
+    )
+
+    return make_page(
+        h1=CONFIG.h1_title,
+        canonical="/",
+        nav_key="home",
+        sub=CONFIG.h1_sub,
+        inner=inner,
+    )
+
+
+def state_page_html(state: str, cities: list[CityWithCol]) -> str:
+    city_links = "\n".join(
+        f'<li><a href="{esc("/" + city_state_slug(city, state) + "/")}">{esc(city)}, {esc(state)}</a></li>'
+        for city, state, _ in cities
+    )
+
+    inner = (
+        f"""
+<h2>Cities we serve in {esc(state)}</h2>
+<p class="muted">Choose your city to see local details and typical pricing ranges.</p>
+<ul class="city-grid">
+{city_links}
+</ul>
+<hr />
+<p class="muted">
+  Also available: <a href="/cost/">{esc(CONFIG.cost_title)}</a> and <a href="/how-to/">{esc(CONFIG.howto_title)}</a>.
+</p>
+""".strip()
+    )
+
+    return make_page(
+        h1=state_title(state),
+        canonical=f"/{state_slug(state)}/",
+        nav_key="home",
+        sub=CONFIG.h1_sub,
+        inner=inner,
+    )
+
+
+
+
 def contact_page_html() -> str:
     # Hard-coded copy
     h1 = "Get Your Free Estimate"
@@ -977,9 +1060,23 @@ def main() -> None:
   write_text(out / "how-to" / "index.html", howto_page_html())
   write_text(out / "contact" / "index.html", contact_page_html())
 
+  # State pages + city pages
+  by_state = cities_by_state(CITIES)
+
+  for st, city_list in by_state.items():
+      # state index page: /{state}/
+      write_text(out / state_slug(st) / "index.html", state_page_html(st, city_list))
+
+      # city pages: /{city-state}/
+      for city, state, col in city_list:
+          write_text(out / city_state_slug(city, state) / "index.html", city_page_html(city, state, col))
+
+
+  """
   # City pages
   for city, state, col in CITIES:
       write_text(out / city_state_slug(city, state) / "index.html", city_page_html(city, state, col))
+  """
 
   # robots + sitemap + wrangler
   urls = ["/", "/cost/", "/how-to/"] + [f"/{city_state_slug(c, s)}/" for c, s, _ in CITIES]
