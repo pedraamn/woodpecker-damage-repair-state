@@ -1055,7 +1055,7 @@ def main() -> None:
   copy_site_image(src_dir=script_dir, out_dir=out, filename=CONFIG.image_filename)
 
   # Core pages
-  write_text(out / "index.html", homepage_html())
+  write_text(out / "index.html", state_homepage_html())
   write_text(out / "cost" / "index.html", cost_page_html())
   write_text(out / "how-to" / "index.html", howto_page_html())
   write_text(out / "contact" / "index.html", contact_page_html())
