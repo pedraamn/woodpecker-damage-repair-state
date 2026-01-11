@@ -206,9 +206,8 @@ def slugify(s: str) -> str:
 def city_state_slug(city: str, state: str) -> str:
     return f"{slugify(city)}-{slugify(state)}"
 
-def state_slug(state: str) -> str:
-    # state is already like "CA", "TX" in your CSV loader
-    return slugify(state)
+def state_city_slug(city: str, state: str) -> str:
+  return f"{slugify(state)}/{slugify(city)}"
 
 def state_title(state: str) -> str:
     return clamp_title(f"{CONFIG.h1_short} in {state}", 70)
@@ -858,7 +857,7 @@ def state_homepage_html() -> str:
     states = sorted(by_state.keys())
 
     state_links = "\n".join(
-        f'<li><a href="{esc("/" + state_slug(st) + "/")}">{esc(st)}</a></li>'
+        f'<li><a href="{esc("/" + slugify(st) + "/")}">{esc(st)}</a></li>'
         for st in states
     )
 
@@ -891,7 +890,7 @@ def state_homepage_html() -> str:
 
 def state_page_html(state: str, cities: list[CityWithCol]) -> str:
     city_links = "\n".join(
-        f'<li><a href="{esc("/" + city_state_slug(city, state) + "/")}">{esc(city)}, {esc(state)}</a></li>'
+        f'<li><a href="{esc("/" + state_city_slug(city, state) + "/")}">{esc(city)}, {esc(state)}</a></li>'
         for city, state, _ in cities
     )
 
@@ -911,7 +910,7 @@ def state_page_html(state: str, cities: list[CityWithCol]) -> str:
 
     return make_page(
         h1=state_title(state),
-        canonical=f"/{state_slug(state)}/",
+        canonical=f"/{slugify(state)}/",
         nav_key="home",
         sub=CONFIG.h1_sub,
         inner=inner,
@@ -978,15 +977,16 @@ def contact_page_html() -> str:
 
 
 
-def city_page_html(city: str, state: str, col: float) -> str:
+def city_page_html(city: str, state: str, col: float, is_state_site: bool = False) -> str:
     inner = (
       location_cost_section(city, state, col)
       + make_section(headings=CONFIG.main_h2, paras=CONFIG.main_p)
     )
+    canonical = f"/{state_city_slug(city, state)}/" if is_state_site else f"/{city_state_slug(city, state)}/"
 
     return make_page(
         h1=city_title(city, state),
-        canonical=f"/{city_state_slug(city, state)}/",
+        canonical=canonical,
         nav_key="home",
         sub=CONFIG.h1_sub,
         inner=inner,
@@ -1065,11 +1065,11 @@ def main() -> None:
 
   for st, city_list in by_state.items():
       # state index page: /{state}/
-      write_text(out / state_slug(st) / "index.html", state_page_html(st, city_list))
+      write_text(out / slugify(st) / "index.html", state_page_html(st, city_list))
 
       # city pages: /{city-state}/
       for city, state, col in city_list:
-          write_text(out / city_state_slug(city, state) / "index.html", city_page_html(city, state, col))
+          write_text(out / state_city_slug(city, state) / "index.html", city_page_html(city, state, col, is_state_site=True))
 
 
   """
@@ -1079,7 +1079,9 @@ def main() -> None:
   """
 
   # robots + sitemap + wrangler
-  urls = ["/", "/cost/", "/how-to/"] + [f"/{city_state_slug(c, s)}/" for c, s, _ in CITIES]
+  #city_urls = [f"/{city_state_slug(c, s)}/" for c, s, _ in CITIES]
+  city_urls = [f"/{state_city_slug(c, s)}/" for c, s, _ in CITIES]
+  urls = ["/", "/cost/", "/how-to/"] + city_urls
   write_text(out / "robots.txt", robots_txt())
   write_text(out / "sitemap.xml", sitemap_xml(urls))
   write_text(script_dir / "wrangler.jsonc", wrangler_content())
