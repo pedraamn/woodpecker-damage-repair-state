@@ -8,6 +8,7 @@ import csv
 import html
 import re
 import shutil
+import us
 
 
 
@@ -209,8 +210,12 @@ def city_state_slug(city: str, state: str) -> str:
 def state_city_slug(city: str, state: str) -> str:
   return f"{slugify(state)}/{slugify(city)}"
 
+def state_from_abbr(state) -> str:
+  full = us.states.lookup(state)
+  return full if full else state
+
 def state_title(state: str) -> str:
-    return clamp_title(f"{CONFIG.h1_short} in {state}", 70)
+    return clamp_title(f"{CONFIG.h1_short} in {state_from_abbr(state)}", 70)
 
 def cities_by_state(cities: tuple[CityWithCol, ...]) -> dict[str, list[CityWithCol]]:
     m: dict[str, list[CityWithCol]] = {}
