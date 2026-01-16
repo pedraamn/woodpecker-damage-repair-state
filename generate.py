@@ -862,7 +862,7 @@ def state_homepage_html() -> str:
     states = sorted(by_state.keys())
 
     state_links = "\n".join(
-        f'<li><a href="{esc("/" + slugify(st) + "/")}">{esc(state_from_abbr(st))}</a></li>'
+        f'<li><a href="{esc("/" + slugify(st) + "/")}">{state_from_abbr(st)}</a></li>'
         for st in states
     )
 
